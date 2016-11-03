@@ -1,7 +1,7 @@
 import React from 'react'
 import { render } from 'react-dom';
 import { createStore, combineReducers } from 'redux'
-import { compose, map, prop, pipe, curry, reduce, propOr, identity, add, pluck, max, reject} from 'ramda'
+import { compose, map, prop, pipe, curry, reduce, propOr, identity, add, pluck, max, reject,propEq} from 'ramda'
 
 const combine = curry((g, c) => x => (<div>{g(x)} {c(x)} </div>));
 const combineComonents = (...args) => {
@@ -22,16 +22,25 @@ const TodoHeader = mapStateProps(getHeader, Header);
 const Footer = () => (<div> this is our footer </div>);
 const TodoFooter = mapStateProps(() => 'undefined', Footer);
 
-// Todo Item component
-const getTodos = prop('todos');
-const ItemList = items => (<ul> {items}</ul>);
-const Item = item => (<li key={item.id}> {item.content}</li>);
-const TodoList = mapStateProps(getTodos, compose(ItemList, map(Item))); // this can be changed to pipes
+//TodoList Component
+// const getTodos = prop('todos');
+// const ItemList = items => (<ul> {items}</ul>);
+// const Item = item => (<li key={item.id}> {item.content}</li>);
+// const TodoList = mapStateProps(getTodos, compose(ItemList, map(Item))); // this can be changed to pipes
+
+//Todo List refactored
+const getTodosAndProps = (props) => ({todos: props.todos, onDelete: props.dispatch(deleteTodo)});
+const mapPropsToitem = ({todos, onDelete}) => {
+    return map((todo) => Item(todo, onDelete), todos);
+}
+const ItemList = items => (<ul> {items} </ul>);
+const Item = (item, onDelete) => (<li key={item.id}> {item.content}<button onClick={() => onDelete(item.id)}> Delete this todo </button></li>)
+const TodoList = mapStateProps(getTodosAndProps, compose(ItemList, mapPropsToitem));
 
 //Add button
 // Header component
-const addTodoButton = onSave => (<button onClick={() => onSave('hallo')}>Add a todo item</button>);
-const TodoAdd = mapStateProps((props) => (some) => console.log(some), addTodoButton);
+const addTodoButton = ({onSave}) => (<button onClick={() => onSave('hallo')}>Add a todo item</button>);
+const TodoAdd = mapStateProps((props) => ({onSave: props.dispatch(addTodo)}), addTodoButton);
 // const TodoList = compose(ListItems, map(Item), getTodos);
 // TodoList :: getTodos -> ItemLi
 const addOne = add(1);
@@ -45,32 +54,8 @@ const DELETE_TODO = 'delete_todo';
 const addTodo = content => ({ type: ADD_TODO, content});
 const deleteTodo = id => ({type: DELETE_TODO, id});
 
-const createReducer = (init, handlers) => {
-    return (state = init, action) => {
-        return propOr(identity, prop('type', action), handlers)(state, action);
-    }
-}
-const todo = createReducer([], {
-    [ADD_TODO](state, action){
-        return [
-            {id: getNextId, content: action.contnet, completed: false},
-            ...state,
 
-        ]
-    },
-    [DELETE_TODO](state, action){
-        return reject(propEq('id', action.id), state)
-    }
-});
-const year = createReducer('', {});
-const title = createReducer('', {});
-const reducer = combineReducers(todo, year, title)
-const store = createStore(reducer, intitalState);
 
-const bindAction = curry((dispatch, actionCreators) => compose(dispatch, actionCreators));
-const bindActionCreators = bindAction(store.dispatch);
-
-const App = combineComonents(TodoHeader, TodoAdd, TodoList, TodoFooter);
 const intitalState = {todos: [{
     id: 1,
     content: 'the content of my stuffs'
@@ -82,6 +67,38 @@ const intitalState = {todos: [{
 {
     id: 3,
     content: 'Am a nard'
-}], title: 'A todo List'}
+}], title: 'A todo List', year: 1997};
+const createReducer = (init, handlers) => {
+    return (state = init, action) => {
+        return propOr(identity, prop('type', action), handlers)(state, action);
+    }
+}
+const todos = createReducer([], {
+    [ADD_TODO](state, action){
+        return [
+            {id: getNextId(state), content: action.content, completed: false},
+            ...state,
 
-render(<App {...props} />, document.getElementById('app')) // eslint-disable-line
+        ]
+    },
+    [DELETE_TODO](state, action){
+        return reject(propEq('id', action.id), state)
+    }
+});
+const year = createReducer('', {});
+const title = createReducer('', {});
+const reducer = combineReducers({todos, year, title});
+const store = createStore(reducer, intitalState);
+
+const bindAction = curry((dispatch, actionCreators) => compose(dispatch, actionCreators));
+const bindActionCreators = bindAction(store.dispatch);
+
+const App = combineComonents(TodoHeader, TodoAdd, TodoList, TodoFooter);
+
+
+const getRender = node => app => render(app, node)
+const renderDom = getRender(document.getElementById('app'));
+const run = store.subscribe(() => {
+    return renderDom(<App {...store.getState()} dispatch={bindActionCreators}/>);
+})
+const init = store.dispatch({type: "@@init"});
