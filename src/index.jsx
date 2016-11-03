@@ -9,7 +9,7 @@ const combineComonents = (...args) => {
     return reduce((acc, c) => combine(acc, c), first, rest);
 }
 
-const mapStateProps = curry((f, g) => compose(g, f));
+const mapStateProps = curry((f, g) => compose(g, f)); // This is the same as Pipe
 
 // const result = todoHeader(state);
 
@@ -19,8 +19,8 @@ const getHeader = prop('title')
 const TodoHeader = mapStateProps(getHeader, Header);
 
 // Footer component
-const Footer = () => (<div> this is our footer </div>);
-const TodoFooter = mapStateProps(() => 'undefined', Footer);
+const Footer = (year) => (<div> this is our footer {year}</div>);
+const TodoFooter = mapStateProps((props) => props.year, Footer);
 
 //TodoList Component
 // const getTodos = prop('todos');
@@ -94,7 +94,6 @@ const bindAction = curry((dispatch, actionCreators) => compose(dispatch, actionC
 const bindActionCreators = bindAction(store.dispatch);
 
 const App = combineComonents(TodoHeader, TodoAdd, TodoList, TodoFooter);
-
 
 const getRender = node => app => render(app, node)
 const renderDom = getRender(document.getElementById('app'));
